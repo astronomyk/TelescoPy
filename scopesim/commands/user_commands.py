@@ -216,7 +216,7 @@ class UserCommands:
     def set_modes(self, modes=None):
         if not isinstance(modes, list):
             modes = [modes]
-        for defyam in self.default_yamls:
+        for defyam in self.default_yamls + self.yaml_dicts:
             if "properties" in defyam and "modes" in defyam["properties"]:
                 defyam["properties"]["modes"] = []
                 for mode in modes:

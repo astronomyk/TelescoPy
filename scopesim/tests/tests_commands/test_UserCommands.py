@@ -85,8 +85,7 @@ class TestInit:
         with pytest.raises(ValueError):
             UserCommands(yamls=yamls, mode_yamls=mode_yamls, set_modes=["mode2"])
 
-
-def test_mode_yamls_read_from_file(self):
+    def test_mode_yamls_read_from_file(self):
         cmd = UserCommands(use_instrument="test_package")
         assert cmd["!TEL.temperature"] < 9000
         assert cmd["!OBS.airmass"] == 2

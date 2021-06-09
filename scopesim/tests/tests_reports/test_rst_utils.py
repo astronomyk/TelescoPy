@@ -71,7 +71,7 @@ class TestPlotifyRstText:
     def test_stuff(self):
         print(IMG_PATH)
         ru.plotify_rst_text(ro.big_rst_text)
-        fnames = ["my_fug_A.pdf", "my_fug_B.svg", "my_fug_C.png"]
+        fnames = ["my_fug_A.pdf", "my_fug_B.svg", "my_fug_c.png"]
         for fname in fnames:
             assert os.path.exists(os.path.join(IMG_PATH, fname))
 
