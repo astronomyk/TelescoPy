@@ -130,7 +130,7 @@ class Source(SourceBase):
 
     """
 
-    def __init__(self, filename=None,
+    def __init__(self, filename=None, cube=None, ext=0,
                  lam=None, spectra=None, x=None, y=None, ref=None, weight=None,
                  table=None, image_hdu=None, **kwargs):
 
@@ -143,13 +143,16 @@ class Source(SourceBase):
         self.bandpass = None
 
         valid = validate_source_input(lam=lam, x=x, y=y, ref=ref, weight=weight,
-                                      spectra=spectra, table=table,
+                                      spectra=spectra, table=table, cube=cube, ext=ext,
                                       image_hdu=image_hdu, filename=filename)
 
         spectra = convert_to_list_of_spectra(spectra, lam)
 
         if filename is not None and spectra is not None:
             self._from_file(filename, spectra)
+
+        if cube is not None:
+            self._from_cube(cube=cube, ext=ext)
 
         elif table is not None and spectra is not None:
             self._from_table(table, spectra)
@@ -221,6 +224,65 @@ class Source(SourceBase):
 
         self.fields += [tbl]
         self.spectra += spectra
+
+    def _from_cube(self, cube, ext=0):
+        """
+
+        Parameters
+        ----------
+        cube: a file, HDUList or a PrimaryHDU object containing the cube
+        ext: int
+            the extension where the cube is located if applicable.
+
+        """
+        if isinstance(cube, fits.HDUList):
+            data = cube[ext].data
+            header = cube[ext].header
+        elif isinstance(cube, (fits.PrimaryHDU, fits.ImageHDU)):
+            data = cube.data
+            header = cube.header
+        else:
+            with fits.open(cube) as hdul:
+                data = hdul[ext].data
+                header = hdul[ext].header
+
+        try:
+            bunit = header['BUNIT']
+            u.Unit(bunit)
+        except KeyError as e:
+            bunit = "erg / (s cm2 arcsec2)"
+            warnings.warn("Keyword 'BUNIT' not found, setting to %s by default" % bunit)
+        except ValueError as e:
+            print("'BUNIT' keyword is malformed", e)
+            raise
+
+        if header["CTYPE3"].lower() not in ["freq", 'wave', "awav", 'wavelength']:
+            raise ValueError("Only ['FREQ','WAVE','AWAV', 'WAVELENGTH'] are supported")
+
+        target_cube = data
+        target_hdr = header.copy()
+        target_hdr["BUNIT"] = bunit
+
+        cube_hdu = fits.ImageHDU(data=target_cube, header=target_hdr)
+
+        self.fields += [cube_hdu]
+
+    @property
+    def table_fields(self):
+        fields = [field for field in self.fields if isinstance(field, Table)]
+        return fields
+
+    @property
+    def image_fields(self):
+        fields = [field for field in self.fields if
+                  isinstance(field, fits.ImageHDU) and field.header["NAXIS"] == 2]
+        return fields
+
+    @property
+    def cube_fields(self):
+        fields = [field for field in self.fields if
+                  isinstance(field, fits.ImageHDU) and field.header["NAXIS"] == 3]
+        return fields
 
     def image_in_range(self, wave_min, wave_max, pixel_scale=1*u.arcsec,
                        layers=None, area=None, order=1, sub_pixel=False):
@@ -338,7 +400,7 @@ class Source(SourceBase):
                 y = utils.quantity_from_table("y", self.fields[ii], u.arcsec)
                 y += utils.quantify(dy, u.arcsec)
                 self.fields[ii]["y"] = y
-            elif isinstance(self.fields[ii], fits.ImageHDU):
+            elif isinstance(self.fields[ii], (fits.ImageHDU, fits.PrimaryHDU)):
                 dx = utils.quantify(dx, u.arcsec).to(u.deg)
                 dy = utils.quantify(dy, u.arcsec).to(u.deg)
                 self.fields[ii].header["CRVAL1"] += dx.value
@@ -376,7 +438,7 @@ class Source(SourceBase):
         for c, field in zip(clrs, self.fields):
             if isinstance(field, Table):
                 plt.plot(field["x"], field["y"], c+".")
-            elif isinstance(field, fits.ImageHDU):
+            elif isinstance(field, (fits.ImageHDU, fits.PrimaryHDU)):
                 x, y = imp_utils.calc_footprint(field.header)
                 x *= 3600   # Because ImageHDUs are always in CUNIT=DEG
                 y *= 3600

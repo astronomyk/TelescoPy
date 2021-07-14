@@ -620,20 +620,30 @@ def pix2val(header, x, y, wcs_suffix=""):
     """
 
     s = wcs_suffix
-    if "PC1_1"+s in header:
-        pc11 = header["PC1_1"+s]
-        pc12 = header["PC1_2"+s]
-        pc21 = header["PC2_1"+s]
-        pc22 = header["PC2_2"+s]
+    if "CD1_1" + s in header:
+        pc11 = header["CD1_1" + s]
+        pc12 = header["CD1_2" + s]
+        pc21 = header["CD2_1" + s]
+        pc22 = header["CD2_2" + s]
+        da = 1  # CD1_1, etc contain both rotation and scale
+        db = 1
+
+    elif "PC1_1" + s in header:
+        pc11 = header["PC1_1" + s]
+        pc12 = header["PC1_2" + s]
+        pc21 = header["PC2_1" + s]
+        pc22 = header["PC2_2" + s]
+        da = header["CDELT1" + s]
+        db = header["CDELT2" + s]
     else:
         pc11, pc12, pc21, pc22 = 1, 0, 0, 1
+        da = header["CDELT1" + s]
+        db = header["CDELT2" + s]
 
-    da = header["CDELT1"+s]
-    db = header["CDELT2"+s]
-    x0 = header["CRPIX1"+s]
-    y0 = header["CRPIX2"+s]
-    a0 = header["CRVAL1"+s]
-    b0 = header["CRVAL2"+s]
+    x0 = header["CRPIX1" + s]
+    y0 = header["CRPIX2" + s]
+    a0 = header["CRVAL1" + s]
+    b0 = header["CRVAL2" + s]
 
     a = a0 + da * ((x - x0) * pc11 + (y - y0) * pc12)
     b = b0 + db * ((x - x0) * pc21 + (y - y0) * pc22)
@@ -663,20 +673,30 @@ def val2pix(header, a, b, wcs_suffix=""):
     if isinstance(header, fits.ImageHDU):
         header = header.header
 
-    if "PC1_1"+s in header:
-        pc11 = header["PC1_1"+s]
-        pc12 = header["PC1_2"+s]
-        pc21 = header["PC2_1"+s]
-        pc22 = header["PC2_2"+s]
+    if "CD1_1" + s in header:
+        pc11 = header["CD1_1" + s]
+        pc12 = header["CD1_2" + s]
+        pc21 = header["CD2_1" + s]
+        pc22 = header["CD2_2" + s]
+        da = 1  # CD1_1, etc contain both rotation and scale
+        db = 1
+
+    elif "PC1_1" + s in header:
+        pc11 = header["PC1_1" + s]
+        pc12 = header["PC1_2" + s]
+        pc21 = header["PC2_1" + s]
+        pc22 = header["PC2_2" + s]
+        da = header["CDELT1" + s]
+        db = header["CDELT2" + s]
     else:
         pc11, pc12, pc21, pc22 = 1, 0, 0, 1
+        da = header["CDELT1" + s]
+        db = header["CDELT2" + s]
 
-    da = float(header["CDELT1"+s])
-    db = float(header["CDELT2"+s])
-    x0 = float(header["CRPIX1"+s])
-    y0 = float(header["CRPIX2"+s])
-    a0 = float(header["CRVAL1"+s])
-    b0 = float(header["CRVAL2"+s])
+    x0 = header["CRPIX1" + s]
+    y0 = header["CRPIX2" + s]
+    a0 = header["CRVAL1" + s]
+    b0 = header["CRVAL2" + s]
 
     x = x0 + 1. / da * ((a - a0) * pc11 - (b - b0) * pc21)
     y = y0 + 1. / db * ((a - a0) * pc12 + (b - b0) * pc22)

@@ -7,6 +7,7 @@ from pathlib import Path
 import sys
 import warnings
 from collections import OrderedDict
+
 from docutils.core import publish_string
 from copy import deepcopy
 
@@ -942,3 +943,11 @@ def write_report(text, filename=None, output=["rst"]):
             fname = os.path.join(*fname.parts[:-1], fname.stem + suffix)
             with open(fname, "w") as f:
                 f.write(out_text)
+
+
+
+
+
+
+
+
