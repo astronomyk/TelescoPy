@@ -14,7 +14,7 @@ def make_emission_from_emissivity(temp, emiss_src_spec):
     Parameters
     ----------
     temp : float, Quantity
-        [deg_C] If float, then must be in degrees Celsius
+        [Kelvin] If float, then must be in Kelvin
     emiss_src_spec : synphot.SpectralElement
         An emissivity response curve in the range [0..1]
 
@@ -25,7 +25,7 @@ def make_emission_from_emissivity(temp, emiss_src_spec):
     """
 
     if isinstance(temp, u.Quantity):
-        temp = temp.to(u.deg_C)
+        temp = temp.to(u.Kelvin, equivalencies=u.temperature()).value
 
     if emiss_src_spec is None:
         warnings.warn("Either emission or emissivity must be set")
@@ -35,7 +35,7 @@ def make_emission_from_emissivity(temp, emiss_src_spec):
         flux.meta["solid_angle"] = u.sr**-1
         flux = flux * emiss_src_spec
         flux.meta["history"] = ["Created from Blackbody curve. Units are to be"
-                                "understood as per steradian"]
+                                " understood as per steradian"]
 
     return flux
 

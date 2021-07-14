@@ -1,12 +1,17 @@
+'''Tests for SpectralSurface'''
+# pylint: disable=no-self-use,missing-class-docstring
+# pylint: disable=missing-function-docstring
+
 # 1 read in a table
 # 2 compliment the table based on columns in file
 # 3 have @property methods for: transmission, ermission, reflection
 
-import pytest
 import inspect
 import os
 import sys
 import warnings
+
+import pytest
 
 import numpy as np
 from astropy.table import Table, Column
@@ -15,6 +20,7 @@ from astropy.io import ascii as ioascii
 
 from synphot import SpectralElement, SourceSpectrum
 from synphot.models import BlackBody1D
+from synphot.models import Empirical1D
 from synphot.units import PHOTLAM
 
 from scopesim.optics import surface as opt_surf
@@ -32,21 +38,21 @@ def mock_dir():
 MOCK_DIR = mock_dir()
 
 
-@pytest.fixture(scope="class")
-def ter_table():
+@pytest.fixture(name="ter_table", scope="class")
+def fixture_ter_table():
     return ioascii.read(os.path.join(MOCK_DIR, "TER_dichroic.dat"))
 
 
-@pytest.fixture(scope="module")
-def input_tables():
+@pytest.fixture(name="input_tables", scope="module")
+def fixture_input_tables():
     filenames = ["TER_dichroic.dat", "TC_filter_Ks.dat"]
     abs_paths = [os.path.join(MOCK_DIR, fname) for fname in filenames]
 
     return abs_paths
 
 
-@pytest.fixture(scope="module")
-def unity_flux():
+@pytest.fixture(name="unity_flux", scope="module")
+def fixture_unity_flux():
     flux = np.ones(100)
     wave = np.logspace(-1, 1, 100) * u.um
 
@@ -141,13 +147,15 @@ class TestSpectralSurfaceEmissionProperty:
         n = 11
         sr2arcsec = u.sr.to(u.arcsec ** 2)
         wave = np.logspace(-1, 3, n) * u.um
+        temp = (0 * u.deg_C).to(u.Kelvin, equivalencies=u.temperature())
         srf = opt_surf.SpectralSurface(wavelength=wave,
                                        transmission=np.zeros(n),
-                                       temperature=0*u.deg_C)
-        emission_raw = SourceSpectrum(BlackBody1D, temperature=273)
+                                       temperature=temp)
+        emission_raw = SourceSpectrum(BlackBody1D, temperature=temp)
+
         assert isinstance(srf.emission, SourceSpectrum)
-        assert np.all(np.isclose(emission_raw(wave) / srf.emission(wave),
-                                 np.array([sr2arcsec]*n)))
+        assert np.allclose(emission_raw(wave) / sr2arcsec,
+                           srf.emission(wave))
 
 
 class TestSpectralSurfaceComplimentArray:
@@ -271,6 +279,21 @@ class TestMakeEmissionFromEmissivity:
         assert out.model.temperature_0 == 273
 
 
+    @pytest.mark.parametrize("temp", [283, 283*u.deg_C, 283*u.Kelvin])
+    def test_blackbody_maximum_agrees_with_wien(self, temp):
+        '''Check the maximum of emission against Wien's law for photon rate'''
+        emissivity = SpectralElement(Empirical1D, points=[1, 20],
+                                     lookup_table=[1., 1.])
+        flux = surf_utils.make_emission_from_emissivity(temp, emissivity)
+        dlam = 0.1
+        wave = np.arange(3, 20, dlam) * u.um
+        wavemax = wave[np.argmax(flux(wave))]
+        if isinstance(temp, u.Quantity):
+            temp = temp.to(u.Kelvin, equivalencies=u.temperature()).value
+        wienmax = 3669.7 * u.um / temp
+        assert np.abs(wavemax - wienmax.to(u.um)) < dlam * u.um
+
+
 class TestNormaliseBinnedFlux:
     # .. todo:: write this test class
     def test_returns_correct_normalisation(self):
@@ -358,6 +381,3 @@ class TestGetMetaQuantity:
     def test_raise_error_when_key_not_in_dict(self):
         with pytest.raises(KeyError):
             utils.get_meta_quantity({}, "area", u.um ** 2)
-
-
-
